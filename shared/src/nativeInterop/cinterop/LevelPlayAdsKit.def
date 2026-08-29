@@ -1,0 +1,4 @@
+language = Objective-C
+interop-package = ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.bridge
+headers = LevelPlayAdsKit.h
+headerFilter = LevelPlayAdsKit.h

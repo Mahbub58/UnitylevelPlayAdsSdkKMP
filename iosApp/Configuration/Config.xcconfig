@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=UnitylevelPlayAdsSdkKMP
+PRODUCT_BUNDLE_IDENTIFIER=ltd.softvinax.unity_level_play_ads_sdk_kmp.UnitylevelPlayAdsSdkKMP$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0

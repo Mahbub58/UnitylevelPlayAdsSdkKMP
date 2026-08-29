@@ -1,0 +1,12 @@
+platform :ios, '18.2'
+
+target 'iosApp' do
+  use_frameworks!
+
+  # Unity LevelPlay iOS SDK + Unity Ads adapter
+  pod 'IronSourceSDK', '~> 9.0.0'
+  pod 'IronSourceUnityAdsAdapter', '~> 5.11.0'
+
+  # Shared.framework (Kotlin Multiplatform) is integrated via the
+  # "Embed And Sign Apple Framework" Xcode build phase - do NOT add it here.
+end
