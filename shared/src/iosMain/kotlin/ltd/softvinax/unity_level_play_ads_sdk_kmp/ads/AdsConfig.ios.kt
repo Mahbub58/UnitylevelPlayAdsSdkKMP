@@ -1,9 +1,7 @@
 package ltd.softvinax.unity_level_play_ads_sdk_kmp.ads
 
-import platform.Foundation.NSBundle
-
 actual fun platformAdsConfig(): AdsConfig = AdsConfig(
-    appKey = NSBundle.mainBundle.objectForInfoDictionaryKey("LevelPlayAppKey") as? String ?: "",
+    appKey = AdsCredentials.IOS_APP_KEY,
     interstitialAdUnitId = LevelPlayAdUnits.INTERSTITIAL,
     rewardedAdUnitId = LevelPlayAdUnits.REWARDED,
     bannerAdUnitId = LevelPlayAdUnits.BANNER,

@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":shared"))
 
     implementation(libs.androidx.activity.compose)
+    implementation(libs.play.services.ads.identifier)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
@@ -32,6 +33,8 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["admobApplicationId"] =
+            levelPlayProperty("ADMOB_APP_ID").ifBlank { "ca-app-pub-3940256099942544~3347511713" }
     }
     packaging {
         resources {
@@ -43,7 +46,7 @@ android {
             buildConfigField("String", "LEVELPLAY_APP_KEY", "\"${levelPlayProperty("LEVELPLAY_APP_KEY_DEBUG")}\"")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

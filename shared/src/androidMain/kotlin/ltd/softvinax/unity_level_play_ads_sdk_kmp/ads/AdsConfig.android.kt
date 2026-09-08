@@ -11,7 +11,7 @@ object AndroidAdsConfigHolder {
 }
 
 actual fun platformAdsConfig(): AdsConfig = AdsConfig(
-    appKey = AndroidAdsConfigHolder.appKey,
+    appKey = AndroidAdsConfigHolder.appKey.ifBlank { AdsCredentials.ANDROID_APP_KEY },
     interstitialAdUnitId = LevelPlayAdUnits.INTERSTITIAL,
     rewardedAdUnitId = LevelPlayAdUnits.REWARDED,
     bannerAdUnitId = LevelPlayAdUnits.BANNER,

@@ -1,11 +1,14 @@
-platform :ios, '18.2'
+platform :ios, '15.0'
 
 target 'iosApp' do
   use_frameworks!
 
   # Unity LevelPlay iOS SDK + Unity Ads adapter
-  pod 'IronSourceSDK', '~> 9.0.0'
+  pod 'IronSourceSDK', '~> 9.6.0'
   pod 'IronSourceUnityAdsAdapter', '~> 5.11.0'
+
+  # Google User Messaging Platform (consent management - GDPR/CCPA/COPPA)
+  pod 'GoogleUserMessagingPlatform', '~> 3.1'
 
   # Shared.framework (Kotlin Multiplatform) is integrated via the
   # "Embed And Sign Apple Framework" Xcode build phase - do NOT add it here.

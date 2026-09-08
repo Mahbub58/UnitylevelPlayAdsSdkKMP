@@ -15,12 +15,14 @@ class AdsCoordinator(
     val bannerState: StateFlow<AdsState> = adsManager.bannerState
 
     fun start(onReady: (AdsInitResult) -> Unit) {
-        adsManager.init(config.appKey) { result ->
-            if (result is AdsInitResult.Success) {
-                adsManager.loadInterstitial(config.interstitialAdUnitId)
-                adsManager.loadRewarded(config.rewardedAdUnitId)
+        requestConsent { result ->
+            adsManager.init(config.appKey, result ?: ConsentResult.default()) { initResult ->
+                if (initResult is AdsInitResult.Success) {
+                    adsManager.loadInterstitial(config.interstitialAdUnitId)
+                    adsManager.loadRewarded(config.rewardedAdUnitId)
+                }
+                onReady(initResult)
             }
-            onReady(result)
         }
     }
 

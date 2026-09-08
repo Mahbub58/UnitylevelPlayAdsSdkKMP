@@ -49,7 +49,7 @@ class LevelPlayAdsManager(
 
     private var pendingRewardEarned: (() -> Unit)? = null
 
-    override fun init(appKey: String, onReady: (AdsInitResult) -> Unit) {
+    override fun init(appKey: String, consent: ConsentResult, onReady: (AdsInitResult) -> Unit) {
         if (appKey.isBlank()) {
             val error = AdsError.Init("LevelPlay App Key is not configured. See README.")
             _initState.value = AdsInitState.Failed(error)
@@ -57,6 +57,12 @@ class LevelPlayAdsManager(
             return
         }
         _initState.value = AdsInitState.Initializing
+        LevelPlayAdsKitBridge.setTestSuiteEnabled(AdsCredentials.ENABLE_TEST_SUITE)
+        LevelPlayAdsKitBridge.applyPrivacyConsent(
+            consent = consent.canRequestAds,
+            doNotSell = consent.doNotSell,
+            childDirected = consent.childDirected,
+        )
         LevelPlayAdsKitBridge.initializeSdkWithAppKey(appKey) { event, message, error ->
             handleEvent(event, message, error, onReady)
         }
@@ -134,6 +140,9 @@ class LevelPlayAdsManager(
             EVENT_SDK_INIT_SUCCESS -> {
                 _initState.value = AdsInitState.Ready
                 onReady(AdsInitResult.Success)
+                if (AdsCredentials.ENABLE_TEST_SUITE) {
+                    LevelPlayAdsKitBridge.launchTestSuite()
+                }
             }
             EVENT_SDK_INIT_FAILED -> {
                 val adError = AdsError.Init(errorMessage, errorCode)

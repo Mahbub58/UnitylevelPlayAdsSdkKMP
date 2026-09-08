@@ -1,8 +1,9 @@
 import Foundation
 import UIKit
 import IronSource
+import UserMessagingPlatform
 
-@objc public final class LevelPlayAdsKitBridge: NSObject {
+@objc(LevelPlayAdsKitBridge) public final class LevelPlayAdsKitBridge: NSObject {
 
     private static var interstitialAd: LPMInterstitialAd?
     private static var rewardedAd: LPMRewardedAd?
@@ -11,20 +12,79 @@ import IronSource
     private static var rewardedDelegate: RewardedDelegate?
     private static var bannerDelegate: BannerDelegate?
     private static var bannerIsReady = false
+    private static var bannerRetryCount = 0
+    private static var bannerViewController: UIViewController?
+    private static var bannerContainer: AdaptiveBannerContainer?
     private static var eventHandler: LPAKCallback?
+    private static var testSuiteEnabled = false
+
+    private static let bannerRetryDelay: TimeInterval = 10
+    private static let maxBannerRetries = 5
 
     private static func emit(_ event: LPAKEvent, message: String? = nil, error: NSError? = nil) {
         eventHandler?(event.rawValue, message, error)
     }
 
+    // MARK: - Consent (Google UMP - SDK-provided GDPR/CCPA/COPPA form)
+
+    @objc public static func requestConsent(testMode: Bool, debugGeography: String, completion: @escaping LPAKConsentCallback) {
+        DispatchQueue.main.async {
+            let params = RequestParameters()
+            if testMode {
+                let debug = DebugSettings()
+                let rawValue: Int
+                switch debugGeography {
+                case "US": rawValue = 3
+                case "EEA": rawValue = 1
+                default: rawValue = 0
+                }
+                debug.geography = DebugGeography(rawValue: rawValue) ?? .EEA
+                params.debugSettings = debug
+                NSLog("UMP: test mode on, forced geography raw=\(String(describing: debug.geography.rawValue))")
+            }
+            NSLog("UMP: requesting consent info update")
+            ConsentInformation.shared.requestConsentInfoUpdate(with: params) { error in
+                if let error = error {
+                    NSLog("UMP: consent info update error \(error.localizedDescription)")
+                    completion(false, false, error as NSError)
+                    return
+                }
+                NSLog("UMP: consent info OK, canRequestAds=\(ConsentInformation.shared.canRequestAds), presenting SDK consent form")
+                ConsentForm.loadAndPresentIfRequired(from: topViewController()) { formError in
+                    NSLog("UMP: form flow done, error=\(formError?.localizedDescription ?? "none")")
+                    completion(ConsentInformation.shared.canRequestAds, usPrivacyDoNotSell, formError as NSError?)
+                }
+            }
+        }
+    }
+
+    /// CCPA signal from the UMP-provided US Privacy String stored after the US-state
+    /// consent form. Second character 'Y' = opted out of the sale of personal information.
+    /// Absent string (not a US-regulated region) resolves to `false` (no do-not-sell).
+    private static var usPrivacyDoNotSell: Bool {
+        let usPrivacy = UserDefaults.standard.string(forKey: "IABUSPrivacy_String") ?? ""
+        return usPrivacy.count >= 2 && Array(usPrivacy)[1] == "Y"
+    }
+
     // MARK: - SDK Init
+
+    @objc public static func setTestSuiteEnabled(_ enabled: Bool) {
+        testSuiteEnabled = enabled
+    }
+
+    @objc public static func applyPrivacyConsent(_ consent: Bool, doNotSell: Bool, childDirected: Bool) {
+        LPMPrivacySettings.setGDPRConsent(consent)
+        LPMPrivacySettings.setCCPA(doNotSell)
+        LPMPrivacySettings.setCOPPA(childDirected)
+    }
 
     @objc public static func initializeSdkWithAppKey(_ appKey: String, callback: @escaping LPAKCallback) {
         eventHandler = callback
-        let builder = LPMInitRequestBuilder(appKey: appKey)
-        builder.withLegacyAdFormats([IS_INTERSTITIAL, IS_REWARDED_VIDEO, IS_BANNER])
-        let request = builder.build()
-        LevelPlay.initWithRequest(request) { config, error in
+        if testSuiteEnabled {
+            LevelPlay.setMetaDataWithKey("is_test_suite", value: "enable")
+        }
+        let request = LPMInitRequestBuilder(appKey: appKey).build()
+        LevelPlay.initWith(request) { config, error in
             if let error = error {
                 let nsError = error as NSError
                 emit(.sdkInitFailed, message: nsError.localizedDescription, error: nsError)
@@ -32,6 +92,15 @@ import IronSource
                 emit(.sdkInitSuccess)
             }
         }
+    }
+
+    // MARK: - Test Suite
+
+    @objc public static func launchTestSuite() {
+        guard testSuiteEnabled, let viewController = topViewController() else {
+            return
+        }
+        LevelPlay.launchTestSuite(viewController)
     }
 
     // MARK: - Interstitial
@@ -81,17 +150,40 @@ import IronSource
     // MARK: - Banner
 
     @objc public static func createBannerWithAdUnitId(_ adUnitId: String) -> UIView? {
-        let banner = LPMBannerAdView(adUnitId: adUnitId)
+        guard let adaptiveSize = LPMAdSize.createAdaptive() else {
+            return nil
+        }
+        let config = LPMBannerAdViewConfigBuilder()
+            .set(adSize: adaptiveSize)
+            .build()
+        let banner = LPMBannerAdView(adUnitId: adUnitId, config: config)
+        let container = AdaptiveBannerContainer(
+            size: CGSize(width: UIScreen.main.bounds.width, height: CGFloat(adaptiveSize.height))
+        )
+        banner.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(banner)
+        NSLayoutConstraint.activate([
+            banner.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            banner.topAnchor.constraint(equalTo: container.topAnchor),
+            banner.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        bannerContainer = container
         let delegate = BannerDelegate()
         bannerDelegate = delegate
         banner.setDelegate(delegate)
-        banner.translatesAutoresizingMaskIntoConstraints = false
         bannerAd = banner
         bannerIsReady = false
-        if let viewController = topViewController() {
+        bannerRetryCount = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            guard let banner = LevelPlayAdsKitBridge.bannerAd,
+                  let viewController = topViewController() else {
+                return
+            }
+            LevelPlayAdsKitBridge.bannerViewController = viewController
             banner.loadAd(with: viewController)
         }
-        return banner
+        return container
     }
 
     @objc public static func isBannerReady() -> Bool {
@@ -103,6 +195,9 @@ import IronSource
         bannerAd = nil
         bannerDelegate = nil
         bannerIsReady = false
+        bannerRetryCount = 0
+        bannerViewController = nil
+        bannerContainer = nil
     }
 
     // MARK: - Delegates
@@ -176,11 +271,25 @@ import IronSource
     private final class BannerDelegate: NSObject, LPMBannerAdViewDelegate {
         func didLoadAd(with adInfo: LPMAdInfo) {
             bannerIsReady = true
+            LevelPlayAdsKitBridge.bannerRetryCount = 0
             emit(.bannerLoaded)
         }
 
         func didFailToLoadAd(withAdUnitId adUnitId: String, error: Error) {
-            emit(.bannerLoadFailed, message: (error as NSError).localizedDescription, error: error as NSError)
+            let nsError = error as NSError
+            emit(.bannerLoadFailed, message: nsError.localizedDescription, error: nsError)
+            let isNoFill = nsError.localizedDescription.lowercased().contains("no fill") ||
+                nsError.localizedDescription.lowercased().contains("no_fill")
+            if isNoFill && LevelPlayAdsKitBridge.bannerRetryCount < LevelPlayAdsKitBridge.maxBannerRetries {
+                LevelPlayAdsKitBridge.bannerRetryCount += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + LevelPlayAdsKitBridge.bannerRetryDelay) {
+                    guard let banner = LevelPlayAdsKitBridge.bannerAd,
+                          let viewController = LevelPlayAdsKitBridge.bannerViewController else {
+                        return
+                    }
+                    banner.loadAd(with: viewController)
+                }
+            }
         }
 
         func didClickAd(with adInfo: LPMAdInfo) {
@@ -203,6 +312,23 @@ import IronSource
     }
 
     // MARK: - Helpers
+
+    private final class AdaptiveBannerContainer: UIView {
+        private let adSize: CGSize
+
+        init(size: CGSize) {
+            adSize = size
+            super.init(frame: CGRect(origin: .zero, size: size))
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) is not supported")
+        }
+
+        override var intrinsicContentSize: CGSize {
+            adSize
+        }
+    }
 
     private static func topViewController() -> UIViewController? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }

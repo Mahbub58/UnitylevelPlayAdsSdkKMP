@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface AdsManager {
 
-    fun init(appKey: String, onReady: (AdsInitResult) -> Unit)
+    fun init(appKey: String, consent: ConsentResult, onReady: (AdsInitResult) -> Unit)
 
     fun loadInterstitial(adUnitId: String)
     fun showInterstitial()

@@ -4,4 +4,5 @@
 // Replace with your real Dashboard App Key.
 // Ad Unit IDs are NOT here - they live in the shared module:
 //   shared/src/commonMain/kotlin/.../ads/LevelPlayAdUnits.kt
-LEVELPLAY_APP_KEY=27d971f7d
+LEVELPLAY_APP_KEY=27d9bd7a5
+ADMOB_APP_ID=ca-app-pub-3940256099942544~1458002511

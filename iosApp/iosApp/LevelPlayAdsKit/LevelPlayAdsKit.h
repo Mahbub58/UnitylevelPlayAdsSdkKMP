@@ -27,10 +27,18 @@ typedef NS_ENUM(int32_t, LPAKEvent) {
 };
 
 typedef void (^LPAKCallback)(int32_t event, NSString * _Nullable message, NSError * _Nullable error);
+typedef void (^LPAKConsentCallback)(BOOL canRequestAds, BOOL doNotSell, NSError * _Nullable error);
 
 @interface LevelPlayAdsKitBridge : NSObject
 
++ (void)requestConsentWithTestMode:(BOOL)testMode
+                   debugGeography:(NSString *)debugGeography
+                       completion:(LPAKConsentCallback)completion;
+
 + (void)initializeSdkWithAppKey:(NSString *)appKey callback:(LPAKCallback)callback;
++ (void)applyPrivacyConsent:(BOOL)consent doNotSell:(BOOL)doNotSell childDirected:(BOOL)childDirected;
++ (void)setTestSuiteEnabled:(BOOL)enabled;
++ (void)launchTestSuite;
 + (void)loadInterstitialWithAdUnitId:(NSString *)adUnitId;
 + (BOOL)isInterstitialReady;
 + (void)showInterstitial;
