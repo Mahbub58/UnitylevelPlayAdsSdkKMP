@@ -8,8 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.AndroidAdsConfigHolder
-import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.AndroidAdsHost
+import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.config.AndroidAdsConfigHolder
+import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.data.AndroidAdsHost
+import ltd.softvinax.unity_level_play_ads_sdk_kmp.ui.App
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

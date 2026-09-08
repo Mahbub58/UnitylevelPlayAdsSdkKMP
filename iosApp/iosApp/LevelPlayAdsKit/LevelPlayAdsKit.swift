@@ -7,14 +7,9 @@ import UserMessagingPlatform
 
     private static var interstitialAd: LPMInterstitialAd?
     private static var rewardedAd: LPMRewardedAd?
-    private static var bannerAd: LPMBannerAdView?
     private static var interstitialDelegate: InterstitialDelegate?
     private static var rewardedDelegate: RewardedDelegate?
-    private static var bannerDelegate: BannerDelegate?
-    private static var bannerIsReady = false
-    private static var bannerRetryCount = 0
-    private static var bannerViewController: UIViewController?
-    private static var bannerContainer: AdaptiveBannerContainer?
+    private static var banners: [String: BannerInstance] = [:]
     private static var eventHandler: LPAKCallback?
     private static var testSuiteEnabled = false
 
@@ -149,7 +144,26 @@ import UserMessagingPlatform
 
     // MARK: - Banner
 
+    private final class BannerInstance {
+        let banner: LPMBannerAdView
+        let delegate: BannerDelegate
+        let container: AdaptiveBannerContainer
+        let viewController: UIViewController
+        var isReady = false
+        var retryCount = 0
+
+        init(banner: LPMBannerAdView, delegate: BannerDelegate, container: AdaptiveBannerContainer, viewController: UIViewController) {
+            self.banner = banner
+            self.delegate = delegate
+            self.container = container
+            self.viewController = viewController
+        }
+    }
+
     @objc public static func createBannerWithAdUnitId(_ adUnitId: String) -> UIView? {
+        if banners[adUnitId] != nil {
+            return banners[adUnitId]?.container
+        }
         guard let adaptiveSize = LPMAdSize.createAdaptive() else {
             return nil
         }
@@ -168,36 +182,37 @@ import UserMessagingPlatform
             banner.topAnchor.constraint(equalTo: container.topAnchor),
             banner.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
-        bannerContainer = container
-        let delegate = BannerDelegate()
-        bannerDelegate = delegate
+        let delegate = BannerDelegate(adUnitId: adUnitId)
         banner.setDelegate(delegate)
-        bannerAd = banner
-        bannerIsReady = false
-        bannerRetryCount = 0
+        guard let viewController = topViewController() else {
+            return nil
+        }
+        let instance = BannerInstance(
+            banner: banner,
+            delegate: delegate,
+            container: container,
+            viewController: viewController
+        )
+        banners[adUnitId] = instance
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            guard let banner = LevelPlayAdsKitBridge.bannerAd,
-                  let viewController = topViewController() else {
+            guard let current = LevelPlayAdsKitBridge.banners[adUnitId] else {
                 return
             }
-            LevelPlayAdsKitBridge.bannerViewController = viewController
-            banner.loadAd(with: viewController)
+            current.banner.loadAd(with: current.viewController)
         }
         return container
     }
 
-    @objc public static func isBannerReady() -> Bool {
-        bannerIsReady
+    @objc public static func destroyBannerWithAdUnitId(_ adUnitId: String) {
+        guard let instance = banners.removeValue(forKey: adUnitId) else {
+            return
+        }
+        instance.banner.destroy()
+        instance.container.removeFromSuperview()
     }
 
-    @objc public static func destroyBanner() {
-        bannerAd?.destroy()
-        bannerAd = nil
-        bannerDelegate = nil
-        bannerIsReady = false
-        bannerRetryCount = 0
-        bannerViewController = nil
-        bannerContainer = nil
+    @objc public static func isBannerReady() -> Bool {
+        !banners.isEmpty
     }
 
     // MARK: - Delegates
@@ -269,25 +284,33 @@ import UserMessagingPlatform
     }
 
     private final class BannerDelegate: NSObject, LPMBannerAdViewDelegate {
+        private let adUnitId: String
+
+        init(adUnitId: String) {
+            self.adUnitId = adUnitId
+        }
+
         func didLoadAd(with adInfo: LPMAdInfo) {
-            bannerIsReady = true
-            LevelPlayAdsKitBridge.bannerRetryCount = 0
+            LevelPlayAdsKitBridge.banners[adUnitId]?.isReady = true
+            LevelPlayAdsKitBridge.banners[adUnitId]?.retryCount = 0
             emit(.bannerLoaded)
         }
 
         func didFailToLoadAd(withAdUnitId adUnitId: String, error: Error) {
             let nsError = error as NSError
             emit(.bannerLoadFailed, message: nsError.localizedDescription, error: nsError)
+            guard let current = LevelPlayAdsKitBridge.banners[adUnitId] else {
+                return
+            }
             let isNoFill = nsError.localizedDescription.lowercased().contains("no fill") ||
                 nsError.localizedDescription.lowercased().contains("no_fill")
-            if isNoFill && LevelPlayAdsKitBridge.bannerRetryCount < LevelPlayAdsKitBridge.maxBannerRetries {
-                LevelPlayAdsKitBridge.bannerRetryCount += 1
+            if isNoFill && current.retryCount < LevelPlayAdsKitBridge.maxBannerRetries {
+                current.retryCount += 1
                 DispatchQueue.main.asyncAfter(deadline: .now() + LevelPlayAdsKitBridge.bannerRetryDelay) {
-                    guard let banner = LevelPlayAdsKitBridge.bannerAd,
-                          let viewController = LevelPlayAdsKitBridge.bannerViewController else {
+                    guard let latest = LevelPlayAdsKitBridge.banners[adUnitId] else {
                         return
                     }
-                    banner.loadAd(with: viewController)
+                    latest.banner.loadAd(with: latest.viewController)
                 }
             }
         }

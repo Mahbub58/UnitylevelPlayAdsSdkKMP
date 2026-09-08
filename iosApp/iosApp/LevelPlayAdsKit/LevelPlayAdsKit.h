@@ -47,7 +47,7 @@ typedef void (^LPAKConsentCallback)(BOOL canRequestAds, BOOL doNotSell, NSError 
 + (void)showRewarded;
 + (UIView * _Nullable)createBannerWithAdUnitId:(NSString *)adUnitId;
 + (BOOL)isBannerReady;
-+ (void)destroyBanner;
++ (void)destroyBannerWithAdUnitId:(NSString *)adUnitId;
 
 @end
 
