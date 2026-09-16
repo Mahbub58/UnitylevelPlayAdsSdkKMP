@@ -3,7 +3,7 @@ package ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.consent
 import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.config.AdsCredentials
 
 /**
- * Outcome of the platform consent flow (Google User Messaging Platform),
+ * Outcome of the platform consent flow (custom - previously Google UMP),
  * mapped to the values LevelPlay's consent APIs expect.
  *
  * - [canRequestAds] is the GDPR consent signal (true = user granted consent / ads may be requested).
@@ -26,8 +26,8 @@ data class ConsentResult(
 }
 
 /**
- * Runs the platform consent flow (Google UMP: SDK-provided consent form for GDPR/CCPA/COPPA)
- * and delivers the mapped [ConsentResult]. Invoked on the main thread; `onComplete` may be
+ * Runs the platform consent flow (custom dialog - Google UMP removed).
+ * Deliver the mapped [ConsentResult]. Invoked on the main thread; `onComplete` may be
  * called asynchronously. `null` means the flow failed and callers should fall back to
  * [ConsentResult.default].
  */

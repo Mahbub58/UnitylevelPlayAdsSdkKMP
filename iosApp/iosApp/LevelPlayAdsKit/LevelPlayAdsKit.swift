@@ -1,7 +1,8 @@
 import Foundation
 import UIKit
 import IronSource
-import UserMessagingPlatform
+import AdSupport
+import AppTrackingTransparency
 
 @objc(LevelPlayAdsKitBridge) public final class LevelPlayAdsKitBridge: NSObject {
 
@@ -20,48 +21,7 @@ import UserMessagingPlatform
         eventHandler?(event.rawValue, message, error)
     }
 
-    // MARK: - Consent (Google UMP - SDK-provided GDPR/CCPA/COPPA form)
-
-    @objc public static func requestConsent(testMode: Bool, debugGeography: String, completion: @escaping LPAKConsentCallback) {
-        DispatchQueue.main.async {
-            let params = RequestParameters()
-            if testMode {
-                let debug = DebugSettings()
-                let rawValue: Int
-                switch debugGeography {
-                case "US": rawValue = 3
-                case "EEA": rawValue = 1
-                default: rawValue = 0
-                }
-                debug.geography = DebugGeography(rawValue: rawValue) ?? .EEA
-                params.debugSettings = debug
-                NSLog("UMP: test mode on, forced geography raw=\(String(describing: debug.geography.rawValue))")
-            }
-            NSLog("UMP: requesting consent info update")
-            ConsentInformation.shared.requestConsentInfoUpdate(with: params) { error in
-                if let error = error {
-                    NSLog("UMP: consent info update error \(error.localizedDescription)")
-                    completion(false, false, error as NSError)
-                    return
-                }
-                NSLog("UMP: consent info OK, canRequestAds=\(ConsentInformation.shared.canRequestAds), presenting SDK consent form")
-                ConsentForm.loadAndPresentIfRequired(from: topViewController()) { formError in
-                    NSLog("UMP: form flow done, error=\(formError?.localizedDescription ?? "none")")
-                    completion(ConsentInformation.shared.canRequestAds, usPrivacyDoNotSell, formError as NSError?)
-                }
-            }
-        }
-    }
-
-    /// CCPA signal from the UMP-provided US Privacy String stored after the US-state
-    /// consent form. Second character 'Y' = opted out of the sale of personal information.
-    /// Absent string (not a US-regulated region) resolves to `false` (no do-not-sell).
-    private static var usPrivacyDoNotSell: Bool {
-        let usPrivacy = UserDefaults.standard.string(forKey: "IABUSPrivacy_String") ?? ""
-        return usPrivacy.count >= 2 && Array(usPrivacy)[1] == "Y"
-    }
-
-    // MARK: - SDK Init
+    // MARK: - SDK Init (custom consent - UMP removed)
 
     @objc public static func setTestSuiteEnabled(_ enabled: Bool) {
         testSuiteEnabled = enabled
@@ -73,11 +33,34 @@ import UserMessagingPlatform
         LPMPrivacySettings.setCOPPA(childDirected)
     }
 
+    @objc public static func logIDFA() {
+        if #available(iOS 14, *) {
+            let status = ATTrackingManager.trackingAuthorizationStatus
+            if status == .notDetermined {
+                ATTrackingManager.requestTrackingAuthorization { _ in
+                    logCurrentIDFA()
+                }
+                return
+            }
+        }
+        logCurrentIDFA()
+    }
+
+    private static func logCurrentIDFA() {
+        let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
+        let isTrackingEnabled = ASIdentifierManager.shared().isAdvertisingTrackingEnabled
+        let vendor = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        NSLog("LevelPlay_IDFA: IDFA=\(idfa) isTrackingEnabled=\(isTrackingEnabled) IDFV=\(vendor)")
+        print("LevelPlay_IDFA: IDFA=\(idfa) isTrackingEnabled=\(isTrackingEnabled) IDFV=\(vendor)")
+    }
+
     @objc public static func initializeSdkWithAppKey(_ appKey: String, callback: @escaping LPAKCallback) {
         eventHandler = callback
         if testSuiteEnabled {
             LevelPlay.setMetaDataWithKey("is_test_suite", value: "enable")
         }
+        // Log IDFA for test-device setup (ATT prompt if needed).
+        logIDFA()
         let request = LPMInitRequestBuilder(appKey: appKey).build()
         LevelPlay.initWith(request) { config, error in
             if let error = error {

@@ -1,29 +1,11 @@
 package ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.consent
 
-import LevelPlayAdsKit.LevelPlayAdsKitBridge
-import kotlinx.cinterop.ExperimentalForeignApi
 import ltd.softvinax.unity_level_play_ads_sdk_kmp.ads.config.AdsCredentials
-import platform.Foundation.NSError
-import platform.Foundation.NSLog
 
-@OptIn(ExperimentalForeignApi::class)
+/**
+ * Custom consent is handled by the app's own dialog.
+ * Google UMP removed - see Android counterpart for Unity policy note.
+ */
 actual fun requestConsent(onComplete: (ConsentResult?) -> Unit) {
-    LevelPlayAdsKitBridge.requestConsentWithTestMode(
-        AdsCredentials.DEBUG_FORCE_CONSENT_DIALOG,
-        AdsCredentials.DEBUG_CONSENT_GEOGRAPHY,
-    ) { canRequestAds, doNotSell, error ->
-        val e: NSError? = error
-        if (e != null && !canRequestAds) {
-            NSLog("ConsentUMP: consent flow failed: ${e.localizedDescription}")
-            onComplete(null)
-        } else {
-            onComplete(
-                ConsentResult(
-                    canRequestAds = canRequestAds,
-                    doNotSell = doNotSell,
-                    childDirected = AdsCredentials.ENABLE_COPPA,
-                ),
-            )
-        }
-    }
+    onComplete(ConsentResult.default())
 }

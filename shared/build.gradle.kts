@@ -49,7 +49,6 @@ kotlin {
             implementation(libs.levelplay.mediationSdk)
             implementation(libs.levelplay.unityadsAdapter)
             implementation(libs.levelplay.unityAds)
-            implementation(libs.ump)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

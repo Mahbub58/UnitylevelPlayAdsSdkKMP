@@ -7,8 +7,6 @@ target 'iosApp' do
   pod 'IronSourceSDK', '~> 9.6.0'
   pod 'IronSourceUnityAdsAdapter', '~> 5.11.0'
 
-  # Google User Messaging Platform (consent management - GDPR/CCPA/COPPA)
-  pod 'GoogleUserMessagingPlatform', '~> 3.1'
 
 
   # Shared.framework (Kotlin Multiplatform) is integrated via the
