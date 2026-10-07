@@ -53,14 +53,14 @@ object AdsCredentials {
     const val DEBUG_CONSENT_GEOGRAPHY: String = "EEA"
 
     // ---- Android ----
-    const val ANDROID_APP_KEY: String = "27d971f7d"
-    const val ANDROID_INTERSTITIAL: String = "gxxgiao5omzaqz95"
-    const val ANDROID_REWARDED: String = "8ow6cxhi3gcopyd9"
-    const val ANDROID_BANNER: String = "0shs04ti2gakqd9k"
+    const val ANDROID_APP_KEY: String = ""
+    const val ANDROID_INTERSTITIAL: String = ""
+    const val ANDROID_REWARDED: String = ""
+    const val ANDROID_BANNER: String = ""
 
     // ---- iOS ----
-    const val IOS_APP_KEY: String = "27d9bd7a5"
-    const val IOS_INTERSTITIAL: String = "mm99t0zi6liu8caw"
-    const val IOS_REWARDED: String = "vu8wedrf3cr1kc7z"
-    const val IOS_BANNER: String = "vkgmtcqo3vjyslms"
+    const val IOS_APP_KEY: String = ""
+    const val IOS_INTERSTITIAL: String = ""
+    const val IOS_REWARDED: String = ""
+    const val IOS_BANNER: String = ""
 }
